@@ -2,7 +2,7 @@
 
 | Action | HTTP | Route | Description |
 | ------ | ---- | ----- | ----------- |
-| Save a file | POST | /upload/\<filename\> | Upload/store a file |
+| Save a file | POST | /files/\<filename\> | Upload/store a file |
 | Get a file | GET | /files/\<filename\> | Download a file |
 | List all files | GET | /files | List all available files |
 | Delete a file | DELETE | /files/\<filename\> | Delete a specific file |
