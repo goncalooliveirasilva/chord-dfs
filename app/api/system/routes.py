@@ -1,8 +1,8 @@
 '''system blueprint'''
 from flask.views import MethodView
-from flask_smorest import Blueprint
+from flask import Blueprint
 
-blp = Blueprint("System", __name__, url_prefix="/chord", description="Internal System ooperations.")
+blp = Blueprint("System", __name__, url_prefix="/chord")
 
 
 @blp.route("/successor")
