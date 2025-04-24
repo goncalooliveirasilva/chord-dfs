@@ -23,7 +23,7 @@ def test_upload_file():
     '''Test POST file method'''
     with open(TEST_FILE_PATH, "rb") as f:
         files = {"file": f}
-        response = requests.post(f"{BASE_URL}/files/test.txt", files=files, timeout=TIMEOUT)
+        response = requests.post(f"{BASE_URL}/files", files=files, timeout=TIMEOUT)
     assert response.status_code == 201
     assert "uploaded successfully" in response.json()["message"]
 

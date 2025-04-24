@@ -10,19 +10,6 @@ blp = Blueprint("Files", __name__, url_prefix="/files")
 class FileResource(MethodView):
     '''Operation with a specific file'''
 
-    def post(self, filename):
-        '''Saves a file'''
-        if "file" not in request.files:
-            return {"error": "No file provided."}, 400
-
-        file = request.files["file"]
-        if file.filename == "":
-            return {"error": "No selected file"}, 400
-
-        storage_service.save_file(file, filename)
-        return {"message": f"File {filename} uploaded successfully."}, 201
-
-
     def get(self, filename):
         '''Get a file'''
         file_path = storage_service.get_file_path(filename)
@@ -41,6 +28,19 @@ class FileResource(MethodView):
 class FileListResource(MethodView):
     '''Operations with all files'''
 
+    def post(self):
+        '''Saves a file'''
+        if "file" not in request.files:
+            return {"error": "No file provided."}, 400
+
+        file = request.files["file"]
+        filename = file.filename
+        if filename == "":
+            return {"error": "No selected file"}, 400
+
+        storage_service.save_file(file, filename)
+        return {"message": f"File {filename} uploaded successfully."}, 201
+
     def get(self):
         '''List all files'''
         files = storage_service.list_files()
@@ -52,5 +52,5 @@ class FileListResource(MethodView):
         return {"message": "All files deleted"}, 204
 
 
-blp.add_url_rule("/", view_func=FileListResource.as_view("file_list"))
 blp.add_url_rule("/<filename>", view_func=FileResource.as_view("file_resource"))
+blp.add_url_rule("/", view_func=FileListResource.as_view("file_list"))
