@@ -217,14 +217,58 @@ class Node():
                 return False
 
 
-    def get(self, filename, requester_address):
+    def get_file(self, filename):
         '''Retrive a file from the DHT'''
         key_hash = dht_hash(filename)
         print(f"[DEBUG] Get: {filename} {key_hash}")
 
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
-            pass
+            file_path = STORAGE.get_file_path(filename)
+            if file_path:
+                return ("local", file_path)
+            return ("not_found", None)
+        else:
+            next_node_addr = self.finger_table.find(key_hash)
+            # I'm not responsible: forward to correct node
+            try:
+                response = requests.get(
+                    f"http://{next_node_addr[0]}:{next_node_addr[1]}/files/{filename}",
+                    timeout=TIMEOUT,
+                    stream=True
+                )
+                if response.status_code == 200:
+                    return ("forwarded", response.content)
+                return ("not_found", None)
+            except Exception as e:
+                print(f"[DEBUG] Failed to forward GET: {str(e)}")
+                return ("error", str(e))
+
+
+    def delete_file(self, filename):
+        '''Delete a file from the DHT'''
+        key_hash = dht_hash(filename)
+        print(f"[DEBUG] Delete: {filename} {key_hash}")
+
+        if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
+            # I'm responsible for the file
+            if STORAGE.delete_file(filename):
+                return ("deleted", None)
+            return ("not_found", None)
+        else:
+            next_node_addr = self.finger_table.find(key_hash)
+            # I'm not responsible: forward to correct node
+            try:
+                response = requests.delete(
+                    f"http://{next_node_addr[0]}:{next_node_addr[1]}/files/{filename}",
+                    timeout=TIMEOUT
+                )
+                if response.status_code == 200:
+                    return ("deleted", None)
+                return ("not_found", None)
+            except Exception as e:
+                print(f"[DEBUG] Failed to forward DELETE: {str(e)}")
+                return ("error", str(e))
 
 
 
