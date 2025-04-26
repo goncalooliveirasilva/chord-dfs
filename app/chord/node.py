@@ -1,6 +1,8 @@
 '''chor DHT node'''
 import requests
-from app.utils.chord_utils import generate_id, is_between
+from app.chord.finger_table import FingerTable
+from app.utils.chord_utils import dht_hash, is_between
+from app.services import storage_service as STORAGE
 
 TIMEOUT = 5
 
@@ -9,7 +11,7 @@ class Node():
     def __init__(self, address, some_node_address=None):
 
         self.address = address
-        self.id = generate_id(address)
+        self.id = dht_hash(address)
 
         self.successor_id = None
         self.successor_address = None
@@ -19,6 +21,8 @@ class Node():
 
         self.some_node_address = some_node_address
         self.inside_ring = False
+
+        self.finger_table = FingerTable(self.id, self.address)
 
         if self.some_node_address is None:
             # This is the only node into the ring
@@ -140,15 +144,90 @@ class Node():
             return {"error": str(e)}
 
 
+    def stabilize(self, from_id, address):
+        '''Update all successors
+        from_id: id of the predecessor of node with address address
+        address: address of the node sending stabilize  message
+        '''
+        if from_id is not None and is_between(self.id, self.successor_id, from_id):
+            # Update my successor
+            self.successor_id = from_id
+            self.address = address
+            # Update my successor in finger table
+            self.finger_table.update(1, from_id, address)
 
-    def stabilize(self):
-        '''Update all successors'''
+        # Notify my successor, so it can update its predecessor (which is me)
+        try:
+            response = requests.post(
+                f"http://{self.successor_address[0]}:{self.successor_address[1]}/chord/notify",
+                json={
+                    "predecessor_id": self.id,
+                    "predecessor_addr": self.address
+                },
+                timeout=TIMEOUT
+            )
+            if not response.ok:
+                print(f"[STABILIZE] Notify successor failed: {response.status_code}")
+        except Exception as e:
+            print(f"[STABILIZE] Exception during notify: {str(e)}")
 
-    def put(self, key, value, address):
-        '''Store value'''
+        # Refresh finger table entries
+        entries_to_refresh = self.finger_table.refresh()
+        for (i, lookup_id, address) in entries_to_refresh:
+            try:
+                response = requests.post(
+                    f"http://{address[0]}:{address[1]}/chord/successor",
+                    json={
+                        "id": lookup_id,
+                        "requester": self.address
+                    },
+                    timeout=TIMEOUT
+                )
+                if response.ok:
+                    successor_info = response.json()
+                    successor_id = successor_info["successor_id"]
+                    successor_addr = tuple(successor_info["successor_addr"].values())
+                    self.finger_table.update(i, successor_id, successor_addr)
+            except Exception as e:
+                print(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
 
-    def get(self, key, address):
-        '''Get a value'''
+
+    def put_file(self, filename, file_content):
+        '''Store file through DHT'''
+        key_hash = dht_hash(filename)
+
+        if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
+            # I'm responsible for the file
+            STORAGE.save_file(file_content, filename)
+            print(f"[DEBUG] Stored file {filename} locally.")
+            return True
+        else:
+            # Forward to the responsible node
+            next_node_addr = self.finger_table.find(key_hash)
+            try:
+                files = {"file": (filename, file_content)}
+                response = requests.post(
+                    f"http://{next_node_addr[0]}:{next_node_addr[1]}/files/forward",
+                    files=files,
+                    timeout=TIMEOUT
+                )
+                return response.ok
+            except Exception as e:
+                print(f"[DEBUG] Failed to forward file: {str(e)}")
+                return False
+
+
+    def get(self, filename, requester_address):
+        '''Retrive a file from the DHT'''
+        key_hash = dht_hash(filename)
+        print(f"[DEBUG] Get: {filename} {key_hash}")
+
+        if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
+            # I'm responsible for the file
+            pass
+
+
+
 
     def run(self):
         '''Main loop'''

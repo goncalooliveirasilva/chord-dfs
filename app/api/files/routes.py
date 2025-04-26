@@ -1,6 +1,6 @@
 '''files blueprint'''
 from flask.views import MethodView
-from flask import request, send_file, Blueprint
+from flask import request, send_file, Blueprint, current_app
 from app.services import storage_service
 
 
@@ -38,8 +38,12 @@ class FileListResource(MethodView):
         if filename == "":
             return {"error": "No selected file"}, 400
 
-        storage_service.save_file(file, filename)
-        return {"message": f"File {filename} uploaded successfully."}, 201
+        file_content = file.read()
+        success = current_app.node.put_file(filename, file_content)
+
+        if success:
+            return {"message": f"File {filename} uploaded successfully via DHT."}, 201
+        return {"error": "Failed to store file"}, 500
 
     def get(self):
         '''List all files'''
@@ -52,5 +56,27 @@ class FileListResource(MethodView):
         return {"message": "All files deleted"}, 204
 
 
+class FileForwardResource(MethodView):
+    '''Operations with files by the system'''
+
+    def post(self):
+        '''Forward file'''
+        if "file" not in request.files:
+            return {"error": "No file provided"}, 400
+
+        file = request.files["file"]
+        filename = file.filename
+        file_content = file.read()
+
+        success = current_app.node.put_file(filename, file_content)
+        if success:
+            return {"message": "File stored successfully."}, 201
+        else:
+            return {"error": "Failed to store file"}, 500
+
+
+
+
 blp.add_url_rule("/<filename>", view_func=FileResource.as_view("file_resource"))
 blp.add_url_rule("/", view_func=FileListResource.as_view("file_list"))
+blp.add_url_rule("/forward", view_func=FileForwardResource.as_view("file_forward"))

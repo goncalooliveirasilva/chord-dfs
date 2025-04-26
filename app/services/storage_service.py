@@ -8,7 +8,13 @@ os.makedirs(STORAGE_FOLDER, exist_ok=True)
 def save_file(file, filename: str) -> str:
     '''Save a file to storage.'''
     file_path = os.path.join(STORAGE_FOLDER, filename)
-    file.save(file_path)
+    if hasattr(file, 'save'):
+        # Normal Flask upload
+        file.save(file_path)
+    else:
+        # Raw bytes (from another node)
+        with open(file_path, 'wb') as f:
+            f.write(file)
     return file_path
 
 
