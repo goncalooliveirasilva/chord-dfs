@@ -1,7 +1,7 @@
 '''system blueprint'''
 from flask.views import MethodView
 from flask import Blueprint, request, current_app
-from app.utils.chord_utils import is_between
+
 
 blp = Blueprint("System", __name__, url_prefix="/chord")
 
