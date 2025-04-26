@@ -1,7 +1,7 @@
 # chord-dfs
 **chord-dfs** is a decentralized distributed file system (DFS) based on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **stored** across multiple nodes connected in a **Chord ring**. The goal is to create a simple **fault-tolerant** and **scalable** DFS system.
 
-## What it can do now?
+## What It Can Do Now?
 - Join and organize nodes into a Chord ring using consistent hashing
 - Upload and store files across multiple nodes
 - Each node runs inside a Docker container
@@ -11,10 +11,14 @@
 - Flask
 - Docker
 
-## How to run (Coming soon)
+## How To Run (Coming Soon)
 Instructions for setting up nodes, uploading and downloading files will be added soon.
 
-## Future plans
+## Documentation
+
+[API Endpoints](API.md) - List of endpoints used by the file service and system operations.
+
+## Future Plans
 
 - User accounts: Allow users to register, log in, and access only their own files.
 - File chunking: Split files into chunks and distribute them across nodes
