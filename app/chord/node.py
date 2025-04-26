@@ -114,6 +114,16 @@ class Node():
                 return {"error": str(e)}
 
 
+    def handle_notify(self, predecessor_id, predecessor_addr):
+        '''Process notify call'''
+        if self.predecessor_id is None or is_between(
+            self.predecessor_id, self.id, predecessor_id
+        ):
+            self.predecessor_id = predecessor_id
+            self.predecessor_address = predecessor_addr
+        return {"message": "ACK"}
+
+
     def notify(self, predecessor_id, predecessor_addr):
         '''Update predecessors'''
         try:

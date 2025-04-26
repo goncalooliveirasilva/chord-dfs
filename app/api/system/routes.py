@@ -26,14 +26,8 @@ class ChordNotify(MethodView):
         data = request.json
         predecessor_id = data["predecessor_id"]
         predecessor_addr = tuple(data["predecessor_addr"].values())
-
-        node = current_app.node
-        if node.predecessor_id is None or is_between(
-            node.predecessor_id, node.id, predecessor_id
-        ):
-            node.predecessor_id = predecessor_id
-            node.predecessor_addr = predecessor_addr
-        return {"message": "ACK"}
+        response = current_app.node.handle_notify(predecessor_id, predecessor_addr)
+        return response, 200
 
 
 class ChordJoin(MethodView):
