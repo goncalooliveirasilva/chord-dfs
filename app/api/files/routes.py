@@ -1,4 +1,5 @@
 '''files blueprint'''
+from io import BytesIO
 from flask.views import MethodView
 from flask import request, send_file, Blueprint, current_app
 from app.services import storage_service
@@ -12,17 +13,33 @@ class FileResource(MethodView):
 
     def get(self, filename):
         '''Get a file'''
-        file_path = storage_service.get_file_path(filename)
-        if file_path:
-            return send_file(file_path, as_attachment=True)
-        return {"error": "File not found."}, 404
+        # file_path = storage_service.get_file_path(filename)
+
+        status, file_path = current_app.node.get_file(filename)
+        match status:
+            case "local":
+                # The node has the file
+                return send_file(file_path, as_attachment=True, download_name=filename)
+            case "forwarded":
+                # The file arrives in bytes from other node
+                return send_file(BytesIO(file_path), as_attachment=True, download_name=filename)
+            case "not_found":
+                return {"error": "File not found."}, 404
+
+        return {"error": f"Error retrieving file: {file_path}"}, 500
 
 
     def delete(self, filename):
         '''Delete a file'''
-        if storage_service.delete_file(filename):
-            return {"message": f"File {filename} deleted successfully."}, 200
-        return {"error": "File not found."}, 404
+
+        status, _ = current_app.node.delete_file(filename)
+        match status:
+            case "deleted":
+                return {"message": f"File {filename} deleted successfully."}, 200
+            case "not_found":
+                return {"error": "File not found."}, 404
+
+        return {"error": f"Error deleting file: {filename}"}, 500
 
 
 class FileListResource(MethodView):
