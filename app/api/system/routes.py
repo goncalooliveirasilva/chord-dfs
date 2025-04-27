@@ -18,6 +18,16 @@ class ChordSuccessor(MethodView):
         return response, 200
 
 
+class ChordPredecessor(MethodView):
+    '''Predecessor operations on chord dht protocol'''
+
+    def get(self):
+        '''Get predecessor of a node'''
+        node = current_app
+        predecessor_info = node.get_predecessor()
+        return predecessor_info, 200
+
+
 class ChordNotify(MethodView):
     '''Predecessor operations on chord dht protocol'''
 
@@ -68,6 +78,7 @@ class ChordKeepAlive(MethodView):
 
 
 blp.add_url_rule("/successor", view_func=ChordSuccessor.as_view("chord_successor"))
+blp.add_url_rule("/predecessor", view_func=ChordPredecessor.as_view("chord_predecessor"))
 blp.add_url_rule("/notify", view_func=ChordNotify.as_view("chord_notify"))
 blp.add_url_rule("/join", view_func=ChordJoin.as_view("chord_join"))
 blp.add_url_rule("/info", view_func=ChordInfo.as_view("chord_info"))

@@ -65,12 +65,13 @@ class FileListResource(MethodView):
     def get(self):
         '''List all files'''
         files = storage_service.list_files()
-        return {"files": files}, 200
+        # return {"files": files}, 200
+        return {"message": "Not yet implemented."}
 
     def delete(self):
         '''Delete all files'''
         storage_service.delete_all_files()
-        return {"message": "All files deleted"}, 204
+        return {"message": "Not yet implemented."}, 204
 
 
 class FileForwardResource(MethodView):
@@ -79,7 +80,7 @@ class FileForwardResource(MethodView):
     def post(self):
         '''Forward file'''
         if "file" not in request.files:
-            return {"error": "No file provided"}, 400
+            return {"error": "No file provided."}, 400
 
         file = request.files["file"]
         filename = file.filename

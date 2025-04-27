@@ -1,10 +1,14 @@
 '''chor DHT node'''
+import time
+import threading
 import requests
 from app.chord.finger_table import FingerTable
 from app.utils.chord_utils import dht_hash, is_between
 from app.services import storage_service as STORAGE
 
-TIMEOUT = 5
+TIMEOUT = 10
+JOIN_RETRY_INTERVAL = 5
+STABILIZE_INTERVAL = 5
 
 class Node():
     '''HTTP-based node'''
@@ -29,6 +33,13 @@ class Node():
             self.inside_ring = True
             self.successor_id = self.id
             self.successor_address = self.address
+
+    def get_predecessor(self):
+        '''Get predecessor'''
+        return {
+            "predecessor_id": self.predecessor_id,
+            "predecessor_addr": self.predecessor_address
+        }
 
 
     def handle_join_request(self, joining_id, joining_addr: tuple[str, int]):
@@ -89,6 +100,7 @@ class Node():
                 self.successor_id = data["id"]
                 self.successor_address = tuple(data["address"])
                 self.inside_ring = True
+                print(f"[{self.id}] Successfully joined DHT")
             else:
                 print(f"[DEBUG][{self.id}] join failed with {response.status_code}")
         except Exception as e:
@@ -152,7 +164,7 @@ class Node():
         if from_id is not None and is_between(self.id, self.successor_id, from_id):
             # Update my successor
             self.successor_id = from_id
-            self.address = address
+            self.successor_address = address
             # Update my successor in finger table
             self.finger_table.update(1, from_id, address)
 
@@ -271,7 +283,39 @@ class Node():
                 return ("error", str(e))
 
 
-
-
     def run(self):
+        '''Main node loop'''
+
+        threading.Thread(target=self._main_loop, daemon=True).start()
+
+
+
+    def _main_loop(self):
         '''Main loop'''
+
+        # Attempt to join the DHT ring
+        while not self.inside_ring:
+            self.node_join()
+            if self.inside_ring:
+                # Notify our successor
+                self.notify(self.id, self.address)
+                self.finger_table.fill(self.successor_id, self.successor_address)
+                print(f"[{self.id}] Finished joining, successor is {self.successor_id}")
+            time.sleep(JOIN_RETRY_INTERVAL)
+
+        # Keep stabilizing
+        while True:
+            try:
+                response = requests.get(
+                    f"http://{self.successor_address[0]}:{self.successor_address[1]}/chord/predecessor",
+                    timeout=TIMEOUT
+                )
+                if response.ok:
+                    predecessor_info = response.json()
+                    from_id = predecessor_info["predecessor_id"]
+                    from_addr = predecessor_info["predecessor_addr"]
+
+                    self.stabilize(from_id, from_addr)
+            except Exception as e:
+                print(f"[{self.id}] Stabilize error: {str(e)}")
+            time.sleep(STABILIZE_INTERVAL)
