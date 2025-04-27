@@ -8,7 +8,7 @@ from app.services import storage_service as STORAGE
 
 TIMEOUT = 10
 JOIN_RETRY_INTERVAL = 5
-STABILIZE_INTERVAL = 5
+STABILIZE_INTERVAL = 2
 
 class Node():
     '''HTTP-based node'''
@@ -17,8 +17,8 @@ class Node():
         self.address = address
         self.id = dht_hash(address)
 
-        self.successor_id = None
-        self.successor_address = None
+        self.successor_id = self.id
+        self.successor_address = self.address
 
         self.predecessor_id = None
         self.predecessor_address = None
@@ -46,7 +46,7 @@ class Node():
         '''Process a join request from another node'''
 
         print(f"[DEBUG][{self.id}] handling join for {joining_id} from {joining_addr}")
-        if self.successor_id == joining_id:
+        if self.successor_id == self.id:
             # There's only one node into the ring, and it's me
             self.successor_id = joining_id
             self.successor_address = joining_addr
@@ -85,8 +85,10 @@ class Node():
 
     def node_join(self):
         '''Initiate join via some node'''
+        print(f"[{self.id}] Trying to join.")
         if self.inside_ring or self.some_node_address is None:
             # I'm already in the ring
+            print(f"[{self.id}] Is already in the ring")
             return
         try:
             # I want to join the ring
@@ -97,8 +99,8 @@ class Node():
             )
             if response.ok:
                 data = response.json()
-                self.successor_id = data["id"]
-                self.successor_address = tuple(data["address"])
+                self.successor_id = data["succesor_id"]
+                self.successor_address = tuple(data["successor_addr"])
                 self.inside_ring = True
                 print(f"[{self.id}] Successfully joined DHT")
             else:
@@ -186,20 +188,21 @@ class Node():
         # Refresh finger table entries
         entries_to_refresh = self.finger_table.refresh()
         for (i, lookup_id, address) in entries_to_refresh:
+
             try:
-                response = requests.post(
-                    f"http://{address[0]}:{address[1]}/chord/successor",
-                    json={
-                        "id": lookup_id,
-                        "requester": self.address
-                    },
-                    timeout=TIMEOUT
-                )
-                if response.ok:
-                    successor_info = response.json()
-                    successor_id = successor_info["successor_id"]
-                    successor_addr = tuple(successor_info["successor_addr"].values())
-                    self.finger_table.update(i, successor_id, successor_addr)
+                # response = requests.post(
+                #     f"http://{address[0]}:{address[1]}/chord/successor",
+                #     json={
+                #         "id": lookup_id,
+                #         "requester": self.address
+                #     },
+                #     timeout=TIMEOUT
+                # )
+                # if response.ok:
+                successor_info = self.find_successor(lookup_id, address)
+                successor_id = successor_info["successor_id"]
+                successor_addr = tuple(successor_info["successor_addr"])
+                self.finger_table.update(i, successor_id, successor_addr)
             except Exception as e:
                 print(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
 
@@ -300,6 +303,7 @@ class Node():
                 # Notify our successor
                 self.notify(self.id, self.address)
                 self.finger_table.fill(self.successor_id, self.successor_address)
+                self.stabilize(None, None) # first stabilize
                 print(f"[{self.id}] Finished joining, successor is {self.successor_id}")
             time.sleep(JOIN_RETRY_INTERVAL)
 

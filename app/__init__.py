@@ -11,8 +11,11 @@ def create_app():
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
 
-    host = os.environ.get("HOST", "localhost")
+    # host = os.environ.get("HOST", "localhost")
     port = int(os.environ.get("PORT", 5000))
+
+    chord_host = os.environ.get("CHORD_HOST")
+
     some_node_host = os.environ.get("SOME_NODE_HOST")
     some_node_port = os.environ.get("SOME_NODE_PORT")
 
@@ -20,7 +23,7 @@ def create_app():
     if some_node_host and some_node_port:
         some_node_address = (some_node_host, int(some_node_port))
 
-    app.node = Node(address=(host, port), some_node_address=some_node_address)
+    app.node = Node(address=(chord_host, port), some_node_address=some_node_address)
 
     app.register_blueprint(files_blp)
     app.register_blueprint(system_blp)

@@ -64,13 +64,13 @@ class FileListResource(MethodView):
 
     def get(self):
         '''List all files'''
-        files = storage_service.list_files()
+        # files = storage_service.list_files()
         # return {"files": files}, 200
         return {"message": "Not yet implemented."}
 
     def delete(self):
         '''Delete all files'''
-        storage_service.delete_all_files()
+        # storage_service.delete_all_files()
         return {"message": "Not yet implemented."}, 204
 
 

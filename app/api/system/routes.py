@@ -13,7 +13,7 @@ class ChordSuccessor(MethodView):
         '''Find successor'''
         data = request.json
         lookup_id = data["id"]
-        requester = tuple(data["requester"].values())
+        requester = tuple(data["requester"])
         response = current_app.node.find_successor(lookup_id, requester)
         return response, 200
 
@@ -23,8 +23,7 @@ class ChordPredecessor(MethodView):
 
     def get(self):
         '''Get predecessor of a node'''
-        node = current_app
-        predecessor_info = node.get_predecessor()
+        predecessor_info = current_app.node.get_predecessor()
         return predecessor_info, 200
 
 
@@ -35,7 +34,7 @@ class ChordNotify(MethodView):
         '''Update predecessor pointers endpoint'''
         data = request.json
         predecessor_id = data["predecessor_id"]
-        predecessor_addr = tuple(data["predecessor_addr"].values())
+        predecessor_addr = tuple(data["predecessor_addr"])
         response = current_app.node.handle_notify(predecessor_id, predecessor_addr)
         return response, 200
 
@@ -47,7 +46,7 @@ class ChordJoin(MethodView):
         '''When a nodes is trying to join'''
         data = request.json
         joining_id = data["id"]
-        joining_addr = tuple(data["address"].values())
+        joining_addr = tuple(data["address"])
         response = current_app.node.handle_join_request(joining_id, joining_addr)
         return response, 200
 
@@ -62,10 +61,10 @@ class ChordInfo(MethodView):
             "id": node.id,
             "address": node.address,
             "successor_id": node.successor_id,
-            "successor_addr": node.successor_addr,
+            "successor_addr": node.successor_address,
             "predecessor_id": node.predecessor_id,
-            "predecessor_addr": node.predecessor_addr,
-            "finger_table": node.finger_table
+            "predecessor_addr": node.predecessor_address,
+            "finger_table": str(node.finger_table)
         }
 
 
