@@ -1,5 +1,6 @@
 '''chor DHT node'''
 import time
+import logging
 import threading
 import requests
 from app.chord.finger_table import FingerTable
@@ -9,6 +10,8 @@ from app.services import storage_service as STORAGE
 TIMEOUT = 10
 JOIN_RETRY_INTERVAL = 5
 STABILIZE_INTERVAL = 2
+
+logger = logging.getLogger(__name__)
 
 class Node():
     '''HTTP-based node'''
@@ -45,7 +48,7 @@ class Node():
     def handle_join_request(self, joining_id, joining_addr: tuple[str, int]):
         '''Process a join request from another node'''
 
-        print(f"[DEBUG][{self.id}] handling join for {joining_id} from {joining_addr}")
+        logger.debug(f"[DEBUG][{self.id}] handling join for {joining_id} from {joining_addr}")
         if self.successor_id == self.id:
             # There's only one node into the ring, and it's me
             self.successor_id = joining_id
@@ -85,7 +88,7 @@ class Node():
 
     def node_join(self):
         '''Initiate join via some node'''
-        print(f"[{self.id}] Trying to join.")
+        logger.debug(f"[{self.id}] Trying to join.")
         if self.inside_ring or self.some_node_address is None:
             # I'm already in the ring
             print(f"[{self.id}] Is already in the ring")
@@ -99,14 +102,15 @@ class Node():
             )
             if response.ok:
                 data = response.json()
-                self.successor_id = data["succesor_id"]
+                self.successor_id = data["successor_id"]
                 self.successor_address = tuple(data["successor_addr"])
                 self.inside_ring = True
-                print(f"[{self.id}] Successfully joined DHT")
+                logger.debug(f"[{self.id}] Successfully joined DHT")
             else:
-                print(f"[DEBUG][{self.id}] join failed with {response.status_code}")
+                logger.debug(f"[DEBUG][{self.id}] join failed with {response.status_code}")
         except Exception as e:
             print(f"[{self.id}] join request error {e}")
+            logger.debug(f"[{self.id}] join request error {e}")
 
 
 
@@ -182,8 +186,10 @@ class Node():
             )
             if not response.ok:
                 print(f"[STABILIZE] Notify successor failed: {response.status_code}")
+                logger.debug(f"[STABILIZE] Notify successor failed: {response.status_code}")
         except Exception as e:
             print(f"[STABILIZE] Exception during notify: {str(e)}")
+            logger.debug(f"[STABILIZE] Exception during notify: {str(e)}")
 
         # Refresh finger table entries
         entries_to_refresh = self.finger_table.refresh()
@@ -205,6 +211,7 @@ class Node():
                 self.finger_table.update(i, successor_id, successor_addr)
             except Exception as e:
                 print(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
+                logger.debug(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
 
 
     def put_file(self, filename, file_content):
@@ -215,6 +222,7 @@ class Node():
             # I'm responsible for the file
             STORAGE.save_file(file_content, filename)
             print(f"[DEBUG] Stored file {filename} locally.")
+            logger.debug(f"[DEBUG] Stored file {filename} locally.")
             return True
         else:
             # Forward to the responsible node
@@ -229,6 +237,7 @@ class Node():
                 return response.ok
             except Exception as e:
                 print(f"[DEBUG] Failed to forward file: {str(e)}")
+                logger.debug(f"[DEBUG] Failed to forward file: {str(e)}")
                 return False
 
 
@@ -236,6 +245,7 @@ class Node():
         '''Retrive a file from the DHT'''
         key_hash = dht_hash(filename)
         print(f"[DEBUG] Get: {filename} {key_hash}")
+        logger.debug(f"[DEBUG] Get: {filename} {key_hash}")
 
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
@@ -257,6 +267,7 @@ class Node():
                 return ("not_found", None)
             except Exception as e:
                 print(f"[DEBUG] Failed to forward GET: {str(e)}")
+                logger.debug(f"[DEBUG] Failed to forward GET: {str(e)}")
                 return ("error", str(e))
 
 
@@ -264,6 +275,7 @@ class Node():
         '''Delete a file from the DHT'''
         key_hash = dht_hash(filename)
         print(f"[DEBUG] Delete: {filename} {key_hash}")
+        logger.debug(f"[DEBUG] Delete: {filename} {key_hash}")
 
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
@@ -283,6 +295,7 @@ class Node():
                 return ("not_found", None)
             except Exception as e:
                 print(f"[DEBUG] Failed to forward DELETE: {str(e)}")
+                logger.debug(f"[DEBUG] Failed to forward DELETE: {str(e)}")
                 return ("error", str(e))
 
 
@@ -305,6 +318,7 @@ class Node():
                 self.finger_table.fill(self.successor_id, self.successor_address)
                 self.stabilize(None, None) # first stabilize
                 print(f"[{self.id}] Finished joining, successor is {self.successor_id}")
+                logger.debug(f"[{self.id}] Finished joining, successor is {self.successor_id}")
             time.sleep(JOIN_RETRY_INTERVAL)
 
         # Keep stabilizing
@@ -322,4 +336,5 @@ class Node():
                     self.stabilize(from_id, from_addr)
             except Exception as e:
                 print(f"[{self.id}] Stabilize error: {str(e)}")
+                logger.debug(f"[{self.id}] Stabilize error: {str(e)}")
             time.sleep(STABILIZE_INTERVAL)

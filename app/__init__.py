@@ -1,5 +1,6 @@
 '''app creation'''
 import os
+import logging
 from flask import Flask
 from app.chord.node import Node
 from app.api.files.routes import blp as files_blp
@@ -10,6 +11,15 @@ def create_app():
     app = Flask(__name__)
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
+
+    log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    log_file = "chord_node.log"
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(log_formatter)
+    file_handler.setLevel(logging.DEBUG)
+
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.DEBUG)
 
     # host = os.environ.get("HOST", "localhost")
     port = int(os.environ.get("PORT", 5000))
