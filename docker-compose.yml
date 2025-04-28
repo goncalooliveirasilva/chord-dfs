@@ -50,3 +50,17 @@ services:
     depends_on:
       - node0
     container_name: node3
+
+  node4:
+    build: .
+    ports:
+      - "5004:5000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=5000
+      - CHORD_HOST=node4
+      - SOME_NODE_HOST=node0
+      - SOME_NODE_PORT=5000
+    depends_on:
+      - node0
+    container_name: node4
