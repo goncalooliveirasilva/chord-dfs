@@ -93,5 +93,5 @@ class FileForwardResource(MethodView):
 
 
 blp.add_url_rule("/<filename>", view_func=FileResource.as_view("file_resource"))
-blp.add_url_rule("/", view_func=FileListResource.as_view("file_list"))
+blp.add_url_rule("", view_func=FileListResource.as_view("file_list"))
 blp.add_url_rule("/forward", view_func=FileForwardResource.as_view("file_forward"))
