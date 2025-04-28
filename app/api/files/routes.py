@@ -2,7 +2,6 @@
 from io import BytesIO
 from flask.views import MethodView
 from flask import request, send_file, Blueprint, current_app
-from app.services import storage_service
 
 
 blp = Blueprint("Files", __name__, url_prefix="/files")
@@ -13,8 +12,6 @@ class FileResource(MethodView):
 
     def get(self, filename):
         '''Get a file'''
-        # file_path = storage_service.get_file_path(filename)
-
         status, file_path = current_app.node.get_file(filename)
         match status:
             case "local":
@@ -66,7 +63,7 @@ class FileListResource(MethodView):
         '''List all files'''
         # files = storage_service.list_files()
         # return {"files": files}, 200
-        return {"message": "Not yet implemented."}
+        return {"message": "Not yet implemented."}, 204
 
     def delete(self):
         '''Delete all files'''

@@ -73,7 +73,7 @@ class ChordKeepAlive(MethodView):
 
     def post(self):
         '''Keep-alive heartbeat'''
-        return {"message": "keep-alive, ok?"}
+        return {"message": "Are you alive?"}
 
 
 blp.add_url_rule("/successor", view_func=ChordSuccessor.as_view("chord_successor"))
