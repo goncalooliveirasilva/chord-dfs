@@ -64,7 +64,8 @@ class ChordInfo(MethodView):
             "successor_addr": node.successor_address,
             "predecessor_id": node.predecessor_id,
             "predecessor_addr": node.predecessor_address,
-            "finger_table": str(node.finger_table)
+            "finger_table": str(node.finger_table),
+            "files": node.list_all_files()
         }
 
 
