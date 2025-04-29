@@ -1,5 +1,5 @@
 # chord-dfs
-**chord-dfs** is a decentralized distributed file system (DFS) bultt on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **distributed** across multiple nodes connected in a **Chord ring**. The goal is to provide a simple, **fault-tolerant**, and **scalable** DFS system.
+**chord-dfs** is a decentralized distributed file system (DFS) built on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **distributed** across multiple nodes connected in a **Chord ring**. The goal is to provide a simple, **fault-tolerant**, and **scalable** DFS system.
 This project is implemented using **Python**, **Flask**, and **Docker**.
 
 ## Features
@@ -25,7 +25,7 @@ The ```run.sh``` script builds the Docker image and starts the system with 5 nod
 
 #### Using the API
 The DFS exposes a REST API for interaction.
-You can use ```curl``` to upload, download, and delete files. A UI is planned for the future (see Future Plans to know more about what's comming!).
+You can use ```curl``` to upload, download, and delete files. A UI is planned for the future (see Future Plans to learn more about what's coming up!).
 
 **Upload a File**
 ```
@@ -56,7 +56,7 @@ curl -O http://127.0.0.1:5000/files/<filename>
 curl -X GET http://127.0.0.1:5000/files
 ```
 
-These examples use port ```5000``` which corresponds to node0. Other nodes are accessible via ports ```5001``` through ```5004```.
+These examples use port ```5000``` which corresponds to node0. Other nodes are accessible via ports ```5001``` to ```5004```.
 You can upload, download or delete files from any node.
 Dont't forget to replace ```<filename>``` with the name of an existing file!
 
@@ -66,7 +66,8 @@ Dont't forget to replace ```<filename>``` with the name of an existing file!
 
 ## Documentation
 
-[Files API](docs/files_api.md) - Endpoints for file upload/download/delete.
+[Files API](docs/files_api.md) - Endpoints for file upload/download/delete.  
+
 [System API](docs/system_api.md) - Endpoints related to Chord ring operations.
 
 
