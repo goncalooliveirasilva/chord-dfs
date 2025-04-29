@@ -74,6 +74,7 @@ Dont't forget to replace ```<filename>``` with the name of an existing file!
 
 Some ideas to make this project more robust and user-friendly:
 
+- **Custom node scaling**: Allow launching a dynamic number of nodes via script or CLI argument
 - **Data persistence**: Use Docker volumes to retain files across container restarts
 - **Simple web interface**: Upload, download and monitor nodes via a UI
 - **Dynamic node joins/leaves**: Add and remove nodes without affecting the system
