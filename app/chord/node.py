@@ -48,7 +48,7 @@ class Node():
     def handle_join_request(self, joining_id, joining_addr: tuple[str, int]):
         '''Process a join request from another node'''
 
-        logger.debug(f"[DEBUG][{self.id}] handling join for {joining_id} from {joining_addr}")
+        logger.debug("[DEBUG][%s] handling join for %s from %s", self.id, joining_id, joining_addr)
         if self.successor_id == self.id:
             # There's only one node into the ring, and it's me
             self.successor_id = joining_id
@@ -88,10 +88,10 @@ class Node():
 
     def node_join(self):
         '''Initiate join via some node'''
-        logger.debug(f"[{self.id}] Trying to join.")
+        logger.debug("[%s] Trying to join.", self.id)
         if self.inside_ring or self.some_node_address is None:
             # I'm already in the ring
-            print(f"[{self.id}] Is already in the ring")
+            logger.debug("[%s] I'm already in the ring", self.id)
             return
         try:
             # I want to join the ring
@@ -105,12 +105,11 @@ class Node():
                 self.successor_id = data["successor_id"]
                 self.successor_address = tuple(data["successor_addr"])
                 self.inside_ring = True
-                logger.debug(f"[{self.id}] Successfully joined DHT")
+                logger.debug("[%s] Successfully joined DHT", self.id)
             else:
-                logger.debug(f"[DEBUG][{self.id}] join failed with {response.status_code}")
+                logger.debug("[DEBUG][%s] join failed with %s", self.id, response.status_code)
         except Exception as e:
-            print(f"[{self.id}] join request error {e}")
-            logger.debug(f"[{self.id}] join request error {e}")
+            logger.debug("[%s] join request error %s", self.id, e)
 
 
 
@@ -185,11 +184,9 @@ class Node():
                 timeout=TIMEOUT
             )
             if not response.ok:
-                print(f"[STABILIZE] Notify successor failed: {response.status_code}")
-                logger.debug(f"[STABILIZE] Notify successor failed: {response.status_code}")
+                logger.debug("[STABILIZE] Notify successor failed: %s", response.status_code)
         except Exception as e:
-            print(f"[STABILIZE] Exception during notify: {str(e)}")
-            logger.debug(f"[STABILIZE] Exception during notify: {str(e)}")
+            logger.debug("[STABILIZE] Exception during notify: %s", e)
 
         # Refresh finger table entries
         entries_to_refresh = self.finger_table.refresh()
@@ -210,19 +207,19 @@ class Node():
                 successor_addr = tuple(successor_info["successor_addr"])
                 self.finger_table.update(i, successor_id, successor_addr)
             except Exception as e:
-                print(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
-                logger.debug(f"[STABILIZE][{self.id}] Error refreshing finger {i}: {str(e)}")
+                logger.debug("[STABILIZE][%s] Error refreshing finger %s: %s", self.id, i, e)
 
 
     def put_file(self, filename, file_content):
         '''Store file through DHT'''
         key_hash = dht_hash(filename)
-
+        logger.debug("[DEBUG] File hash: %s", key_hash)
+        logger.debug("[%s] Checking if responsible: pred=%s, self=%s, key=%s",
+                     self.id, self.predecessor_id, self.id, key_hash)
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
             STORAGE.save_file(file_content, filename)
-            print(f"[DEBUG] Stored file {filename} locally.")
-            logger.debug(f"[DEBUG] Stored file {filename} locally.")
+            logger.debug("[DEBUG] Stored file %s locally on node %s.", filename, self.id)
             return True
         else:
             # Forward to the responsible node
@@ -236,16 +233,14 @@ class Node():
                 )
                 return response.ok
             except Exception as e:
-                print(f"[DEBUG] Failed to forward file: {str(e)}")
-                logger.debug(f"[DEBUG] Failed to forward file: {str(e)}")
+                logger.debug("[DEBUG] Failed to forward file: %s", e)
                 return False
 
 
     def get_file(self, filename):
         '''Retrive a file from the DHT'''
         key_hash = dht_hash(filename)
-        print(f"[DEBUG] Get: {filename} {key_hash}")
-        logger.debug(f"[DEBUG] Get: {filename} {key_hash}")
+        logger.debug("[DEBUG] Get: %s %s", filename, key_hash)
 
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
@@ -266,16 +261,14 @@ class Node():
                     return ("forwarded", response.content)
                 return ("not_found", None)
             except Exception as e:
-                print(f"[DEBUG] Failed to forward GET: {str(e)}")
-                logger.debug(f"[DEBUG] Failed to forward GET: {str(e)}")
+                logger.debug("[DEBUG] Failed to forward GET: %s", e)
                 return ("error", str(e))
 
 
     def delete_file(self, filename):
         '''Delete a file from the DHT'''
         key_hash = dht_hash(filename)
-        print(f"[DEBUG] Delete: {filename} {key_hash}")
-        logger.debug(f"[DEBUG] Delete: {filename} {key_hash}")
+        logger.debug("[DEBUG] Delete: %s %s", filename, key_hash)
 
         if self.predecessor_id is None or is_between(self.predecessor_id, self.id, key_hash):
             # I'm responsible for the file
@@ -294,16 +287,26 @@ class Node():
                     return ("deleted", None)
                 return ("not_found", None)
             except Exception as e:
-                print(f"[DEBUG] Failed to forward DELETE: {str(e)}")
-                logger.debug(f"[DEBUG] Failed to forward DELETE: {str(e)}")
+                logger.debug("[DEBUG] Failed to forward DELETE: %s", e)
                 return ("error", str(e))
+
+
+    def list_all_files(self):
+        '''List all files stored'''
+        return STORAGE.list_files()
+
+
+    # def delete_all_files(self):
+    #     '''Delete all files'''
+    #     files = self.list_all_files()
+    #     for file in files:
+    #         self.delete_file(file)
 
 
     def run(self):
         '''Main node loop'''
 
         threading.Thread(target=self._main_loop, daemon=True).start()
-
 
 
     def _main_loop(self):
@@ -317,8 +320,7 @@ class Node():
                 self.notify(self.id, self.address)
                 self.finger_table.fill(self.successor_id, self.successor_address)
                 self.stabilize(None, None) # first stabilize
-                print(f"[{self.id}] Finished joining, successor is {self.successor_id}")
-                logger.debug(f"[{self.id}] Finished joining, successor is {self.successor_id}")
+                logger.debug("[%s] Finished joining, successor is %s", self.id, self.successor_id)
             time.sleep(JOIN_RETRY_INTERVAL)
 
         # Keep stabilizing
@@ -335,6 +337,5 @@ class Node():
 
                     self.stabilize(from_id, from_addr)
             except Exception as e:
-                print(f"[{self.id}] Stabilize error: {str(e)}")
-                logger.debug(f"[{self.id}] Stabilize error: {str(e)}")
+                logger.debug("[%s] Stabilize error: %s", self.id, e)
             time.sleep(STABILIZE_INTERVAL)
