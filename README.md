@@ -21,7 +21,7 @@ cd chord-dfs
 ./run.sh
 ```
 The ```run.sh``` script builds the Docker image and starts the system with 5 nodes by default. To run more nodes, you'll need to update the 
-[docker-compose.yml](docker-compose.yml) or modify the script.
+[docker-compose.yml](docker-compose.yml) or modify the [run.sh](run.sh) script.
 
 #### Using the API
 The DFS exposes a REST API for interaction.
