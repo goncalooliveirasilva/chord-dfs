@@ -61,9 +61,9 @@ class FileListResource(MethodView):
 
     def get(self):
         '''List all files'''
-        # files = storage_service.list_files()
-        # return {"files": files}, 200
-        return {"message": "Not yet implemented."}, 204
+        # files = current_app.node.list_all_files()
+        # return {"files": str(files)}, 200
+        return {"message": "Not yet implemented"}, 204
 
     def delete(self):
         '''Delete all files'''
