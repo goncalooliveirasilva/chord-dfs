@@ -67,7 +67,6 @@ Dont't forget to replace ```<filename>``` with the name of an existing file!
 ## Documentation
 
 [Files API](docs/files_api.md) - Endpoints for file upload/download/delete.  
-
 [System API](docs/system_api.md) - Endpoints related to Chord ring operations.
 
 
