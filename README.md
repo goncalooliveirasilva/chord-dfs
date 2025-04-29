@@ -1,66 +1,85 @@
 # chord-dfs
-**chord-dfs** is a decentralized distributed file system (DFS) based on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **stored** across multiple nodes connected in a **Chord ring**. The goal is to create a simple **fault-tolerant** and **scalable** DFS system. I'm using Python, Flask and Docker.
+**chord-dfs** is a decentralized distributed file system (DFS) bultt on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **distributed** across multiple nodes connected in a **Chord ring**. The goal is to provide a simple, **fault-tolerant**, and **scalable** DFS system.
+This project is implemented using **Python**, **Flask**, and **Docker**.
 
-## What It Can Do Now?
-- Join and organize nodes into a Chord ring using consistent hashing
-- Upload and store files across multiple nodes
-- Each node runs inside a Docker container
+## Features
+
+- Organize nodes into a Chord ring using consistent hashing
+- Upload and store files across distributed nodes
+- Run each node in an isolated Docker container
 
 
 ## How To Run
 
-To setup the system you must have Docker installed and running on your computer. Then, follow the next commands:
-```
+### Requirements
+- Docker installed and running
+
+### Clone and Start
+```bash
 git clone git@github.com:goncalooliveirasilva/chord-dfs.git
 cd chord-dfs
 ./run.sh
 ```
-The (```run.sh```) script will build the Docker image and start Docker compose services.
-For now, the Chord ring has only just 5 nodes (seted up on [docker-compose.yml](docker-compose.yml)), but you can add more if you want.
-To upload, download or delete files, you only need to use the [Files API](docs/files_api.md).
-Now, the best way is through (```curl```) but in the future an web UI will be added (see Future Plans to know more about what's comming!).
+The ```run.sh``` script builds the Docker image and starts the system with 5 nodes by default. To run more nodes, you'll need to update the 
+[docker-compose.yml](docker-compose.yml) or modify the script.
 
-**Upload Files**
+#### Using the API
+The DFS exposes a REST API for interaction.
+You can use ```curl``` to upload, download, and delete files. A UI is planned for the future (see Future Plans to know more about what's comming!).
+
+**Upload a File**
 ```
 curl -X POST -F "file=@<filename>" http://127.0.0.1:5000/files
 ```
 
-**Delete  Files**
+**Delete a File**
 ```
 # delete a specific file
 curl -X DELETE http://127.0.0.1:5000/files/<filename>
 
-# delete all files
+# delete all files (not fully implemented yet)
 curl -X DELETE http://127.0.0.1:5000/files
 ```
 
-**Download Files**
+**Download a File**
 ```
 # only see the content
 curl -X GET http://127.0.0.1:5000/files/<filename>
 
 # actually download
-curl -O  http://127.0.0.1:5000/files/<filename>
+curl -O http://127.0.0.1:5000/files/<filename>
 ```
 
-In these exemples I use (```port 5000```) which is the node0 (first node) port, but you of course can upload, delete ou download a file from the node you want.
-Dont't forget to replace (```<filename>```) with an existing file!
-Once you start the Docker containers, the data you store into them will be deleted.
-In the future a way to make data persist will be added.
+**List Files**
+```
+# get all file names stored (not fully implemented yet)
+curl -X GET http://127.0.0.1:5000/files
+```
+
+These examples use port ```5000``` which corresponds to node0. Other nodes are accessible via ports ```5001``` through ```5004```.
+You can upload, download or delete files from any node.
+Dont't forget to replace ```<filename>``` with the name of an existing file!
+
+## Limitations
+- **Data persistence**: Stored files are lost when Docker containers are stopped. A persistence mechanism is planned.
+- ```DELETE all files``` and ```list files``` are not fully implemented yet.
 
 ## Documentation
 
-[Files API](docs/files_api.md) - List of endpoints used by the file service.
-[System API](docs/system_api.md) - List of endpoints used by the Chord system.
+[Files API](docs/files_api.md) - Endpoints for file upload/download/delete.
+[System API](docs/system_api.md) - Endpoints related to Chord ring operations.
 
 
 ## Future Plans
 
-- Simple web interface: Upload, download and monitor nodes through a web UI
-- Dynamic node joins/leaves: Allow nodes to join or leave without compromising file storage
-- File chunking: Split files into chunks and distribute them across nodes
-- Fault tolerance: Replicate file chunks across other nodes
-- User accounts: Allow users to register, log in, and access only their own files.
+Some ideas to make this project more robust and user-friendly:
+
+- **Data persistence**: Use Docker volumes to retain files across container restarts
+- **Simple web interface**: Upload, download and monitor nodes via a UI
+- **Dynamic node joins/leaves**: Add and remove nodes without affecting the system
+- **File chunking**: Split large files across nodes
+- **Fault tolerance**: Replicate data for reliability
+- **User accounts**: Support for authentication and user-specific storage
 
 ## References
 To develop this project I based myself on [this chord implementation](https://github.com/detiuaveiro/cd_chord) and on [this paper](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf).
