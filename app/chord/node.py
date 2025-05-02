@@ -291,9 +291,22 @@ class Node():
                 return ("error", str(e))
 
 
-    def list_all_files(self):
+    def list_this_node_files(self):
         '''List all files stored'''
+        # this only lists the files in that node, instead of all nodes
         return STORAGE.list_files()
+
+
+    def list_files(self):
+        '''List all the files store in the ring'''
+        try:
+            response = requests.get(
+                f"http://{}:{}/files/list",
+                timeout=TIMEOUT
+            )
+
+        except Exception as e:
+            logger.debug("[DEBUG] Failed to get the files of node ")
 
 
     # def delete_all_files(self):

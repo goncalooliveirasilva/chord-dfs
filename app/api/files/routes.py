@@ -61,9 +61,9 @@ class FileListResource(MethodView):
 
     def get(self):
         '''List all files'''
-        # files = current_app.node.list_all_files()
-        # return {"files": str(files)}, 200
-        return {"message": "Not yet implemented"}, 204
+        files = current_app.node.list_all_files()
+        return {"files": str(files)}, 200
+        # return {"message": "Not yet implemented"}, 204
 
     def delete(self):
         '''Delete all files'''
@@ -90,8 +90,17 @@ class FileForwardResource(MethodView):
             return {"error": "Failed to store file"}, 500
 
 
+class FileNodeListResource(MethodView):
+    '''Operations with files by the system'''
+
+    def get(self):
+        '''Get all files stored in a node'''
+        files = current_app.node.list_this_node_files()
+        return {"files": files}
+
 
 
 blp.add_url_rule("/<filename>", view_func=FileResource.as_view("file_resource"))
 blp.add_url_rule("", view_func=FileListResource.as_view("file_list"))
 blp.add_url_rule("/forward", view_func=FileForwardResource.as_view("file_forward"))
+blp.add_url_rule("/list", view_func=FileNodeListResource.as_view("file_node_list"))
