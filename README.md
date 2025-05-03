@@ -21,7 +21,7 @@ cd chord-dfs
 ./run.sh
 ```
 The ```run.sh``` script builds the Docker image and starts the system with 5 nodes by default. To run more nodes, you'll need to update the 
-[docker-compose.yml](docker-compose.yml) or modify the script.
+[docker-compose.yml](docker-compose.yml) or modify the [run.sh](run.sh) script.
 
 #### Using the API
 The DFS exposes a REST API for interaction.
@@ -67,7 +67,6 @@ Dont't forget to replace ```<filename>``` with the name of an existing file!
 ## Documentation
 
 [Files API](docs/files_api.md) - Endpoints for file upload/download/delete.  
-
 [System API](docs/system_api.md) - Endpoints related to Chord ring operations.
 
 
@@ -75,6 +74,7 @@ Dont't forget to replace ```<filename>``` with the name of an existing file!
 
 Some ideas to make this project more robust and user-friendly:
 
+- **Custom node scaling**: Allow launching a dynamic number of nodes via script or CLI argument
 - **Data persistence**: Use Docker volumes to retain files across container restarts
 - **Simple web interface**: Upload, download and monitor nodes via a UI
 - **Dynamic node joins/leaves**: Add and remove nodes without affecting the system
