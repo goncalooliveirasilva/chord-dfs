@@ -61,7 +61,7 @@ class FileListResource(MethodView):
 
     def get(self):
         '''List all files'''
-        files = current_app.node.list_all_files()
+        files = current_app.node.list_this_node_files()
         return {"files": str(files)}, 200
         # return {"message": "Not yet implemented"}, 204
 
