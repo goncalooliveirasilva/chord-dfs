@@ -8,6 +8,14 @@ This project is implemented using **Python**, **Flask**, and **Docker**.
 - Upload and store files across distributed nodes
 - Run each node in an isolated Docker container
 
+## Tech Stack
+<div>
+  <img height="32" width="32" title="Python" src="https://cdn.simpleicons.org/python" />
+  &nbsp;
+  <img height="32" width="32" title="Flask" src="https://cdn.simpleicons.org/flask" />
+  &nbsp;
+  <img height="32" width="32" title="Docker" src="https://cdn.simpleicons.org/docker" />
+</div>
 
 ## How To Run
 
