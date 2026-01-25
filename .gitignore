@@ -33,3 +33,6 @@ Thumbs.db
 # Project specific
 _legacy/
 *.log
+*.pdf
+ROADMAP.md
+C*
