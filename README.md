@@ -1,4 +1,4 @@
-# chord-dfs
+# chord-dfs [_refactoring and improvements in progress_]
 **chord-dfs** is a decentralized distributed file system (DFS) built on the **Chord Distributed Hash Table (DHT)** protocol. Files are **hashed** and **distributed** across multiple nodes connected in a **Chord ring**. The goal is to provide a simple, **fault-tolerant**, and **scalable** DFS system.
 This project is implemented using **Python**, **Flask**, and **Docker**.
 
