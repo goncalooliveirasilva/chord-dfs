@@ -30,6 +30,9 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Ruff
+.ruff_cache/
+
 # Project specific
 _legacy/
 *.log
