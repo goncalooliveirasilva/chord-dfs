@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from src.api.routes.chord import router as chord_router
 from src.api.routes.files import router as files_router
 from src.config import Settings, get_settings
+from src.services.node_service import NodeService
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +32,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     settings: Settings = app.state.settings
 
-    logger.info("Starting node at %s:%s", settings.host, settings.port)
+    # Build bootstrap address if provided
+    bootstrap_address: tuple[str, int] | None = None
+    if settings.bootstrap_host and settings.bootstrap_port:
+        bootstrap_address = (settings.bootstrap_host, settings.bootstrap_port)
 
-    # TODO: Initialize NodeService and start stabilization loop
+    # Initialize NodeService
+    node_service = NodeService(
+        host=settings.host,
+        port=settings.port,
+        bootstrap_address=bootstrap_address,
+        m_bits=settings.m_bits,
+        stabilize_interval=settings.stabilize_interval,
+    )
+
+    # Store in app state for route access
+    app.state.node_service = node_service
+
+    # Start the service (joins ring and starts stabilization loop)
+    await node_service.start()
 
     yield
 
     # Shutdown
-    logger.info("Shutting down node")
-    # TODO: Stop stabilization loop and cleanup
+    await node_service.stop()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
