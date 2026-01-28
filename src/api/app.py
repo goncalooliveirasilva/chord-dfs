@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from src.api.routes.files import router as files_router
 from src.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Store settings in app state for access in lifespan and routes
     app.state.settings = settings
 
-    # TODO: Register routes
+    # Register routes
+    app.include_router(files_router)
 
     return app
