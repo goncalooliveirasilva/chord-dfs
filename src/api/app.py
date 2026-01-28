@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from src.api.routes.chord import router as chord_router
 from src.api.routes.files import router as files_router
 from src.config import Settings, get_settings
 
@@ -68,5 +69,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Register routes
     app.include_router(files_router)
+    app.include_router(chord_router)
 
     return app
