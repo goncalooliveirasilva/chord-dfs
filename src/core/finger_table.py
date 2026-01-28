@@ -87,3 +87,11 @@ class FingerTable:
             NodeInfo: The successor node
         """
         return self._entries[0]
+
+    def get_node_ids(self) -> list[int]:
+        """Get the node IDs from all finger table entries.
+
+        Returns:
+            list[int]: List of node IDs in the finger table
+        """
+        return [entry.node_id for entry in self._entries]
