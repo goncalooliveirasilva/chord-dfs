@@ -129,25 +129,22 @@ def create_chord_node(
     bootstrap_port: int | None = None,
 ) -> ChordNode:
     """Create a chord node container."""
-    env = {
-        "CHORD_HOST": node_name,
-        "CHORD_PORT": "5000",
-        "CHORD_STORAGE_PATH": "/app/storage",
-        "CHORD_STABILIZE_INTERVAL": "1.0",
-    }
-
-    if bootstrap_host and bootstrap_port:
-        env["CHORD_BOOTSTRAP_HOST"] = bootstrap_host
-        env["CHORD_BOOTSTRAP_PORT"] = str(bootstrap_port)
-
     container = (
         DockerContainer(str(image))
         .with_name(node_name)
         .with_network(network)
         .with_network_aliases(node_name)
         .with_exposed_ports(5000)
-        .with_env(**env)
+        .with_env("CHORD_HOST", node_name)
+        .with_env("CHORD_PORT", "5000")
+        .with_env("CHORD_STORAGE_PATH", "/app/storage")
+        .with_env("CHORD_STABILIZE_INTERVAL", "1.0")
     )
+
+    if bootstrap_host and bootstrap_port:
+        container = container.with_env("CHORD_BOOTSTRAP_HOST", bootstrap_host)
+        container = container.with_env("CHORD_BOOTSTRAP_PORT", str(bootstrap_port))
+
     container.start()
 
     # Get the mapped port
