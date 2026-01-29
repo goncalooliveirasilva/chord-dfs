@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     m_bits: int = 10
     stabilize_interval: float = 2.0
 
-    # Storage
-    storage_path: str = "/app/storage"
+    # Storage (default to local ./storage for development, /app/storage in Docker)
+    storage_path: str = "./storage"
 
     # Logging
     log_level: str = "INFO"
