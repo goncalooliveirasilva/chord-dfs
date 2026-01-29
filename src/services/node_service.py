@@ -3,11 +3,13 @@
 import asyncio
 import contextlib
 import logging
+from pathlib import Path
 
 from src.core.hashing import dht_hash
 from src.core.node import ChordNode
 from src.network.http_transport import HttpTransport
 from src.network.messages import NodeAddress, NodeInfo
+from src.storage.local import LocalStorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class NodeService:
         bootstrap_address: tuple[str, int] | None = None,
         m_bits: int = 10,
         stabilize_interval: float = DEFAULT_STABILIZE_INTERVAL,
+        storage_path: str | Path = "/app/storage",
     ) -> None:
         """Initialize the node service.
 
@@ -41,9 +44,12 @@ class NodeService:
                 Defaults to 10.
             stabilize_interval (float, optional): Seconds between stabilization
                 runs. Defaults to DEFAULT_STABILIZE_INTERVAL.
+            storage_path (str | Path, optional): Path to local storage directory.
+                Defaults to "/app/storage".
         """
         self.address = NodeAddress(host=host, port=port)
         self.node_id = dht_hash(f"{host}:{port}", m_bits=m_bits)
+        self.m_bits = m_bits
         self.bootstrap_address = bootstrap_address
         self.stabilize_interval = stabilize_interval
 
@@ -53,6 +59,7 @@ class NodeService:
             m_bits=m_bits,
         )
         self.transport = HttpTransport()
+        self.storage = LocalStorageBackend(base_path=storage_path)
 
         self._stabilize_task: asyncio.Task[None] | None = None
         self._running = False
@@ -69,6 +76,8 @@ class NodeService:
         the stabilization loop.
         """
         logger.info("Starting node %s at %s", self.node_id, self.address)
+
+        await self.storage.initialize()
 
         if self.bootstrap_address:
             await self._join_ring()
@@ -248,3 +257,113 @@ class NodeService:
     def get_forward_target(self, key: int) -> NodeInfo:
         """Get the node to forward a request to for a key."""
         return self.node.get_forward_target(key)
+
+    def get_file_key(self, filename: str) -> int:
+        """Get the DHT key for a filename."""
+        return dht_hash(filename, m_bits=self.m_bits)
+
+    async def put_file(self, filename: str, content: bytes) -> tuple[bool, str]:
+        """Store a file in the distributed file system.
+
+        Routes the file to the responsible node based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+            content (bytes): File content
+
+        Returns:
+            tuple[bool, str]: (success, message/node_id where stored)
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Store locally
+            await self.storage.save(filename, content)
+            logger.info("Stored file %s locally (key=%s)", filename, key)
+            return True, str(self.node_id)
+
+        # Forward to responsible node
+        target = self.get_forward_target(key)
+        try:
+            success = await self.transport.forward_file(
+                target=target.address,
+                filename=filename,
+                content=content,
+            )
+            if success:
+                logger.info("Forwarded file %s to node %s", filename, target.node_id)
+                return True, str(target.node_id)
+            return False, "Forward failed"
+        except Exception as e:
+            logger.error("Failed to forward file %s: %s", filename, e)
+            return False, str(e)
+
+    async def get_file(self, filename: str) -> bytes | None:
+        """Retrieve a file from the distributed file system.
+
+        Routes the request to the responsible node based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+
+        Returns:
+            bytes | None: File content if found, None otherwise
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Get from local storage
+            return await self.storage.get(filename)
+
+        # Forward to responsible node
+        target = self.get_forward_target(key)
+        try:
+            return await self.transport.get_file(target=target.address, filename=filename)
+        except Exception as e:
+            logger.error("Failed to get file %s from node %s: %s", filename, target.node_id, e)
+            return None
+
+    async def delete_file(self, filename: str) -> bool:
+        """Delete a file from the distributed file system.
+
+        Routes the request to the responsible noode based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+
+        Returns:
+            bool: True if deleted, False otherwise
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Delete from local storage
+            return await self.storage.delete(filename)
+
+        # Forward to responsible node
+        target = self.get_forward_target(key)
+        try:
+            return await self.transport.delete_file(target=target.address, filename=filename)
+        except Exception as e:
+            logger.error("Failed to delete file %s from node %s: %s", filename, target.node_id, e)
+            return False
+
+    async def list_local_files(self) -> list[str]:
+        """List files stored locally on this node.
+
+        Returns:
+            list[str]: List of filenames stored locally
+        """
+        return await self.storage.list_files()
+
+    async def store_file_locally(self, filename: str, content: bytes) -> str:
+        """Store a file directly on this node (for forwarded files).
+
+        Args:
+            filename (str): Name of the file
+            content (bytes): File content
+
+        Returns:
+            str: Path where file was stored
+        """
+        return await self.storage.save(filename, content)
