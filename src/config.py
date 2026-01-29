@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     m_bits: int = 10
     stabilize_interval: float = 2.0
 
+    # Storage
+    storage_path: str = "/app/storage"
+
     # Logging
     log_level: str = "INFO"
 
