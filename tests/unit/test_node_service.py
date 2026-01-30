@@ -124,18 +124,20 @@ class TestNodeServiceStartStop:
 class TestNodeServiceHandleJoin:
     """Tests for handle_join method."""
 
-    def test_handle_join_when_alone(self, node_service):
+    @pytest.mark.asyncio
+    async def test_handle_join_when_alone(self, node_service):
         """Handle join when node is alone."""
         joining_addr = NodeAddress(host="newnode", port=5001)
         joining_id = 200
 
-        result = node_service.handle_join(joining_id, joining_addr)
+        result = await node_service.handle_join(joining_id, joining_addr)
 
         # When alone, returns our info and sets joining node as successor
         assert result.node_id == node_service.node_id
         assert node_service.node.successor.node_id == joining_id
 
-    def test_handle_join_with_successor(self, node_service):
+    @pytest.mark.asyncio
+    async def test_handle_join_with_successor(self, node_service):
         """Handle join when we have a successor."""
         # Set up a successor
         successor = NodeInfo(node_id=500, address=NodeAddress(host="successor", port=5002))
@@ -145,7 +147,7 @@ class TestNodeServiceHandleJoin:
         joining_addr = NodeAddress(host="newnode", port=5001)
         joining_id = (node_service.node_id + 100) % 1024
 
-        result = node_service.handle_join(joining_id, joining_addr)
+        result = await node_service.handle_join(joining_id, joining_addr)
 
         # Should return old successor info
         assert result.node_id == 500
