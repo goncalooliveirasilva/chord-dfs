@@ -62,7 +62,10 @@ class ChordNode:
             bool: True if this node should store/handle the key
         """
         if self.predecessor is None:
-            return True
+            # Only claim responsibility if we're alone in the ring.
+            # If we have a successor that isn't us, we're not alone and
+            # should defer to lookup until stabilization sets our predecessor.
+            return self.is_alone()
         return is_between(self.predecessor.node_id, self.node_id, key)
 
     def closest_preceding_node(self, key: int) -> NodeInfo:
