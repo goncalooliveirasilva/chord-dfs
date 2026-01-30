@@ -87,7 +87,7 @@ async def notify(request: NotifyRequest, node_service: NodeServiceDep) -> Notify
 
     Called by nodes that think they might be our predecessor.
     """
-    node_service.handle_notify(
+    await node_service.handle_notify(
         predecessor_id=request.predecessor_id,
         predecessor_address=NodeAddress(
             host=request.predecessor_addr.host,

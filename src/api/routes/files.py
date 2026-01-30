@@ -1,5 +1,6 @@
 """File routes for the Chord DFS API."""
 
+import base64
 import mimetypes
 from typing import Annotated
 
@@ -7,9 +8,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from src.api.schemas.files import (
+    FileData,
     FileDeleteResponse,
     FileListResponse,
     FileUploadResponse,
+    TransferRequest,
+    TransferResponse,
 )
 from src.services.node_service import NodeService
 
@@ -125,3 +129,22 @@ async def list_local_files(node_service: NodeServiceDep) -> FileListResponse:
     """List files stored locally on this node."""
     files = await node_service.list_local_files()
     return FileListResponse(files=files)
+
+
+@router.post("/transfer", response_model=TransferResponse)
+async def transfer_files(
+    request: TransferRequest, node_service: NodeServiceDep
+) -> TransferResponse:
+    """Get files in a key range for migration.
+
+    Internal endpoint used during node join to transfer files
+    that now belong to the new node.
+    """
+    files_data = await node_service.get_files_in_range(request.start_key, request.end_key)
+
+    return TransferResponse(
+        files=[
+            FileData(filename=filename, content=base64.b64encode(content).decode())
+            for filename, content in files_data
+        ]
+    )

@@ -5,7 +5,7 @@ import contextlib
 import logging
 from pathlib import Path
 
-from src.core.hashing import dht_hash
+from src.core.hashing import dht_hash, is_between
 from src.core.node import ChordNode
 from src.network.http_transport import HttpTransport
 from src.network.messages import NodeAddress, NodeInfo
@@ -278,8 +278,10 @@ class NodeService:
         # Use finger table to find the correct successor
         return await self._find_successor_iterative(joining_id)
 
-    def handle_notify(self, predecessor_id: int, predecessor_address: NodeAddress) -> bool:
+    async def handle_notify(self, predecessor_id: int, predecessor_address: NodeAddress) -> bool:
         """Handle a notify request from a potential predecessor.
+
+        If predecessor is updated, triggers key migration from successor.
 
         Args:
             predecessor_id (int): ID of the potential predecessor
@@ -289,7 +291,13 @@ class NodeService:
             bool: True if predecessor was updated
         """
         potential_pred = NodeInfo(node_id=predecessor_id, address=predecessor_address)
-        return self.node.notify(potential_pred)
+        updated = self.node.notify(potential_pred)
+
+        if updated:
+            # Predecessor changed, migrate keys that now belong to us
+            await self.migrate_keys_from_successor()
+
+        return updated
 
     def get_predecessor(self) -> NodeInfo | None:
         """Get this node's predecessor."""
@@ -412,3 +420,56 @@ class NodeService:
             str: Path where file was stored
         """
         return await self.storage.save(filename, content)
+
+    async def get_files_in_range(self, start_key: int, end_key: int) -> list[tuple[str, bytes]]:
+        """Get all local files with keys in the specified range.
+
+        Used for data migration when a new node joins.
+
+        Args:
+            start_key (int): Start of range (exclusive)
+            end_key (int): End of range (inclusive)
+
+        Returns:
+            list[tuple[str, bytes]]: List of (filename, content) tuples
+        """
+        files = await self.storage.list_files()
+        result = []
+
+        for filename in files:
+            key = self.get_file_key(filename)
+            if is_between(start_key, end_key, key):
+                content = await self.storage.get(filename)
+                if content is not None:
+                    result.append((filename, content))
+        return result
+
+    async def migrate_keys_from_successor(self) -> None:
+        """Request files from successor that now belong to us.
+
+        Called when our predecessor is set/updated during stabilization.
+        Requests files in our responsibility range from our successor.
+        """
+        if self.node.predecessor is None:
+            return
+
+        # Don't migrate if we are alone
+        if self.node.is_alone():
+            return
+
+        # Our range is (predecessor, self]
+        start_key = self.node.predecessor.node_id
+        end_key = self.node_id
+
+        try:
+            files = await self.transport.request_files_in_range(
+                target=self.node.successor.address,
+                start_key=start_key,
+                end_key=end_key,
+            )
+
+            for filename, content in files:
+                await self.storage.save(filename, content)
+                logger.info("Migrated file %s from successor", filename)
+        except Exception as e:
+            logger.warning("Failed to migrate keys from successor: %s", e)
