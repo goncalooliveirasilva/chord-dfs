@@ -156,12 +156,13 @@ class TestNodeServiceHandleJoin:
 class TestNodeServiceHandleNotify:
     """Tests for handle_notify method."""
 
-    def test_handle_notify_sets_predecessor(self, node_service):
+    @pytest.mark.asyncio
+    async def test_handle_notify_sets_predecessor(self, node_service):
         """Handle notify sets predecessor when none exists."""
         pred_addr = NodeAddress(host="predecessor", port=5001)
         pred_id = 50
 
-        result = node_service.handle_notify(pred_id, pred_addr)
+        result = await node_service.handle_notify(pred_id, pred_addr)
 
         assert result is True
         assert node_service.node.predecessor.node_id == pred_id
