@@ -103,7 +103,7 @@ async def join(request: JoinRequest, node_service: NodeServiceDep) -> JoinRespon
 
     Finds the appropriate successor for the joining node.
     """
-    successor = node_service.handle_join(
+    successor = await node_service.handle_join(
         joining_id=request.id,
         joining_address=NodeAddress(
             host=request.address.host,

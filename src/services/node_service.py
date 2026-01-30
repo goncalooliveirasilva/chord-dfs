@@ -146,7 +146,7 @@ class NodeService:
             await asyncio.sleep(self.stabilize_interval)
 
     async def _stabilize(self) -> None:
-        """run one iteration of the stabilization protocol.
+        """Run one iteration of the stabilization protocol.
 
         1. Get successor's predecessor
         2. If that node is between us and successor, adopt it as new successor
@@ -205,8 +205,53 @@ class NodeService:
             except Exception as e:
                 logger.debug("Failed to refresh finger %s: %s", index, e)
 
-    def handle_join(self, joining_id: int, joining_address: NodeAddress) -> NodeInfo:
+    async def _find_successor_iterative(self, key: int, max_hops: int = 10) -> NodeInfo:
+        """Find the successor of a key using iterative finger table lookup.
+
+        Each hop uses the finger table to jump closer to the target,
+        guaranteeing O(log N) hops.
+
+        Args:
+            key (int): The key to find the successor for
+            max_hops (int, optional): Maximum hops to prevent infinite loops. Defaults to 10.
+
+        Returns:
+            NodeInfo: The node responsible for the key
+        """
+        # Start with closest preceding node from our finger table
+        current = self.node.finger_table.find_closest_preceding(key)
+
+        # If closest preceding is ourselves, our successor is responsible
+        if current.node_id == self.node_id:
+            return self.node.successor
+
+        for _ in range(max_hops):
+            try:
+                # Ask current node for the successor of key
+                response = await self.transport.find_successor(
+                    target=current.address,
+                    key=key,
+                    requester_address=self.address,
+                )
+                result = NodeInfo(
+                    node_id=response.successor_id,
+                    address=response.successor_address,
+                )
+
+                # If the node returns itself, it's the responsible node
+                if result.node_id == current.node_id:
+                    return result
+
+                current = result
+            except Exception as e:
+                logger.error("Lookup hop to %s has failed: %s", current.node_id, e)
+                return self.node.successor
+        return current
+
+    async def handle_join(self, joining_id: int, joining_address: NodeAddress) -> NodeInfo:
         """Handle a join request from another node.
+
+        Uses finger table lookup to find the correct successor for the joining node.
 
         Args:
             joining_id (int): ID of the joining node
@@ -230,8 +275,8 @@ class NodeService:
             self.node.set_successor(joining_node)
             return old_successor
 
-        # Otherwise return our successor (forwarding will be handled by caller)
-        return self.node.successor
+        # Use finger table to find the correct successor
+        return await self._find_successor_iterative(joining_id)
 
     def handle_notify(self, predecessor_id: int, predecessor_address: NodeAddress) -> bool:
         """Handle a notify request from a potential predecessor.
@@ -282,8 +327,8 @@ class NodeService:
             logger.info("Stored file %s locally (key=%s)", filename, key)
             return True, str(self.node_id)
 
-        # Forward to responsible node
-        target = self.get_forward_target(key)
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
         try:
             success = await self.transport.forward_file(
                 target=target.address,
@@ -315,8 +360,8 @@ class NodeService:
             # Get from local storage
             return await self.storage.get(filename)
 
-        # Forward to responsible node
-        target = self.get_forward_target(key)
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
         try:
             return await self.transport.get_file(target=target.address, filename=filename)
         except Exception as e:
@@ -340,8 +385,8 @@ class NodeService:
             # Delete from local storage
             return await self.storage.delete(filename)
 
-        # Forward to responsible node
-        target = self.get_forward_target(key)
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
         try:
             return await self.transport.delete_file(target=target.address, filename=filename)
         except Exception as e:
