@@ -25,6 +25,7 @@ dev = [
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
     "ruff>=0.14.14",
+    "testcontainers>=4.14.0",
 ]
 
 [tool.ruff]
@@ -47,6 +48,11 @@ select = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: marks tests as integration tests (require Docker)",
+]
+# By default, exclude integration tests (they require Docker and take longer)
+addopts = "-m 'not integration'"
 
 [tool.coverage.run]
 source = ["src"]

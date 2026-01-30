@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         bootstrap_address=bootstrap_address,
         m_bits=settings.m_bits,
         stabilize_interval=settings.stabilize_interval,
+        storage_path=settings.storage_path,
     )
 
     # Store in app state for route access

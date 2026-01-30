@@ -3,11 +3,13 @@
 import asyncio
 import contextlib
 import logging
+from pathlib import Path
 
-from src.core.hashing import dht_hash
+from src.core.hashing import dht_hash, is_between
 from src.core.node import ChordNode
 from src.network.http_transport import HttpTransport
 from src.network.messages import NodeAddress, NodeInfo
+from src.storage.local import LocalStorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class NodeService:
         bootstrap_address: tuple[str, int] | None = None,
         m_bits: int = 10,
         stabilize_interval: float = DEFAULT_STABILIZE_INTERVAL,
+        storage_path: str | Path = "/app/storage",
     ) -> None:
         """Initialize the node service.
 
@@ -41,9 +44,12 @@ class NodeService:
                 Defaults to 10.
             stabilize_interval (float, optional): Seconds between stabilization
                 runs. Defaults to DEFAULT_STABILIZE_INTERVAL.
+            storage_path (str | Path, optional): Path to local storage directory.
+                Defaults to "/app/storage".
         """
         self.address = NodeAddress(host=host, port=port)
         self.node_id = dht_hash(f"{host}:{port}", m_bits=m_bits)
+        self.m_bits = m_bits
         self.bootstrap_address = bootstrap_address
         self.stabilize_interval = stabilize_interval
 
@@ -53,6 +59,7 @@ class NodeService:
             m_bits=m_bits,
         )
         self.transport = HttpTransport()
+        self.storage = LocalStorageBackend(base_path=storage_path)
 
         self._stabilize_task: asyncio.Task[None] | None = None
         self._running = False
@@ -69,6 +76,8 @@ class NodeService:
         the stabilization loop.
         """
         logger.info("Starting node %s at %s", self.node_id, self.address)
+
+        await self.storage.initialize()
 
         if self.bootstrap_address:
             await self._join_ring()
@@ -137,7 +146,7 @@ class NodeService:
             await asyncio.sleep(self.stabilize_interval)
 
     async def _stabilize(self) -> None:
-        """run one iteration of the stabilization protocol.
+        """Run one iteration of the stabilization protocol.
 
         1. Get successor's predecessor
         2. If that node is between us and successor, adopt it as new successor
@@ -196,8 +205,53 @@ class NodeService:
             except Exception as e:
                 logger.debug("Failed to refresh finger %s: %s", index, e)
 
-    def handle_join(self, joining_id: int, joining_address: NodeAddress) -> NodeInfo:
+    async def _find_successor_iterative(self, key: int, max_hops: int = 10) -> NodeInfo:
+        """Find the successor of a key using iterative finger table lookup.
+
+        Each hop uses the finger table to jump closer to the target,
+        guaranteeing O(log N) hops.
+
+        Args:
+            key (int): The key to find the successor for
+            max_hops (int, optional): Maximum hops to prevent infinite loops. Defaults to 10.
+
+        Returns:
+            NodeInfo: The node responsible for the key
+        """
+        # Start with closest preceding node from our finger table
+        current = self.node.finger_table.find_closest_preceding(key)
+
+        # If closest preceding is ourselves, our successor is responsible
+        if current.node_id == self.node_id:
+            return self.node.successor
+
+        for _ in range(max_hops):
+            try:
+                # Ask current node for the successor of key
+                response = await self.transport.find_successor(
+                    target=current.address,
+                    key=key,
+                    requester_address=self.address,
+                )
+                result = NodeInfo(
+                    node_id=response.successor_id,
+                    address=response.successor_address,
+                )
+
+                # If the node returns itself, it's the responsible node
+                if result.node_id == current.node_id:
+                    return result
+
+                current = result
+            except Exception as e:
+                logger.error("Lookup hop to %s has failed: %s", current.node_id, e)
+                return self.node.successor
+        return current
+
+    async def handle_join(self, joining_id: int, joining_address: NodeAddress) -> NodeInfo:
         """Handle a join request from another node.
+
+        Uses finger table lookup to find the correct successor for the joining node.
 
         Args:
             joining_id (int): ID of the joining node
@@ -221,11 +275,13 @@ class NodeService:
             self.node.set_successor(joining_node)
             return old_successor
 
-        # Otherwise return our successor (forwarding will be handled by caller)
-        return self.node.successor
+        # Use finger table to find the correct successor
+        return await self._find_successor_iterative(joining_id)
 
-    def handle_notify(self, predecessor_id: int, predecessor_address: NodeAddress) -> bool:
+    async def handle_notify(self, predecessor_id: int, predecessor_address: NodeAddress) -> bool:
         """Handle a notify request from a potential predecessor.
+
+        If predecessor is updated, triggers key migration from successor.
 
         Args:
             predecessor_id (int): ID of the potential predecessor
@@ -235,7 +291,13 @@ class NodeService:
             bool: True if predecessor was updated
         """
         potential_pred = NodeInfo(node_id=predecessor_id, address=predecessor_address)
-        return self.node.notify(potential_pred)
+        updated = self.node.notify(potential_pred)
+
+        if updated:
+            # Predecessor changed, migrate keys that now belong to us
+            await self.migrate_keys_from_successor()
+
+        return updated
 
     def get_predecessor(self) -> NodeInfo | None:
         """Get this node's predecessor."""
@@ -248,3 +310,166 @@ class NodeService:
     def get_forward_target(self, key: int) -> NodeInfo:
         """Get the node to forward a request to for a key."""
         return self.node.get_forward_target(key)
+
+    def get_file_key(self, filename: str) -> int:
+        """Get the DHT key for a filename."""
+        return dht_hash(filename, m_bits=self.m_bits)
+
+    async def put_file(self, filename: str, content: bytes) -> tuple[bool, str]:
+        """Store a file in the distributed file system.
+
+        Routes the file to the responsible node based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+            content (bytes): File content
+
+        Returns:
+            tuple[bool, str]: (success, message/node_id where stored)
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Store locally
+            await self.storage.save(filename, content)
+            logger.info("Stored file %s locally (key=%s)", filename, key)
+            return True, str(self.node_id)
+
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
+        try:
+            success = await self.transport.forward_file(
+                target=target.address,
+                filename=filename,
+                content=content,
+            )
+            if success:
+                logger.info("Forwarded file %s to node %s", filename, target.node_id)
+                return True, str(target.node_id)
+            return False, "Forward failed"
+        except Exception as e:
+            logger.error("Failed to forward file %s: %s", filename, e)
+            return False, str(e)
+
+    async def get_file(self, filename: str) -> bytes | None:
+        """Retrieve a file from the distributed file system.
+
+        Routes the request to the responsible node based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+
+        Returns:
+            bytes | None: File content if found, None otherwise
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Get from local storage
+            return await self.storage.get(filename)
+
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
+        try:
+            return await self.transport.get_file(target=target.address, filename=filename)
+        except Exception as e:
+            logger.error("Failed to get file %s from node %s: %s", filename, target.node_id, e)
+            return None
+
+    async def delete_file(self, filename: str) -> bool:
+        """Delete a file from the distributed file system.
+
+        Routes the request to the responsible noode based on filename hash.
+
+        Args:
+            filename (str): Name of the file
+
+        Returns:
+            bool: True if deleted, False otherwise
+        """
+        key = self.get_file_key(filename)
+
+        if self.is_responsible_for(key):
+            # Delete from local storage
+            return await self.storage.delete(filename)
+
+        # Find the responsible node using iterative lookup
+        target = await self._find_successor_iterative(key)
+        try:
+            return await self.transport.delete_file(target=target.address, filename=filename)
+        except Exception as e:
+            logger.error("Failed to delete file %s from node %s: %s", filename, target.node_id, e)
+            return False
+
+    async def list_local_files(self) -> list[str]:
+        """List files stored locally on this node.
+
+        Returns:
+            list[str]: List of filenames stored locally
+        """
+        return await self.storage.list_files()
+
+    async def store_file_locally(self, filename: str, content: bytes) -> str:
+        """Store a file directly on this node (for forwarded files).
+
+        Args:
+            filename (str): Name of the file
+            content (bytes): File content
+
+        Returns:
+            str: Path where file was stored
+        """
+        return await self.storage.save(filename, content)
+
+    async def get_files_in_range(self, start_key: int, end_key: int) -> list[tuple[str, bytes]]:
+        """Get all local files with keys in the specified range.
+
+        Used for data migration when a new node joins.
+
+        Args:
+            start_key (int): Start of range (exclusive)
+            end_key (int): End of range (inclusive)
+
+        Returns:
+            list[tuple[str, bytes]]: List of (filename, content) tuples
+        """
+        files = await self.storage.list_files()
+        result = []
+
+        for filename in files:
+            key = self.get_file_key(filename)
+            if is_between(start_key, end_key, key):
+                content = await self.storage.get(filename)
+                if content is not None:
+                    result.append((filename, content))
+        return result
+
+    async def migrate_keys_from_successor(self) -> None:
+        """Request files from successor that now belong to us.
+
+        Called when our predecessor is set/updated during stabilization.
+        Requests files in our responsibility range from our successor.
+        """
+        if self.node.predecessor is None:
+            return
+
+        # Don't migrate if we are alone
+        if self.node.is_alone():
+            return
+
+        # Our range is (predecessor, self]
+        start_key = self.node.predecessor.node_id
+        end_key = self.node_id
+
+        try:
+            files = await self.transport.request_files_in_range(
+                target=self.node.successor.address,
+                start_key=start_key,
+                end_key=end_key,
+            )
+
+            for filename, content in files:
+                await self.storage.save(filename, content)
+                logger.info("Migrated file %s from successor", filename)
+        except Exception as e:
+            logger.warning("Failed to migrate keys from successor: %s", e)

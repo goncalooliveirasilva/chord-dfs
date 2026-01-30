@@ -87,7 +87,7 @@ async def notify(request: NotifyRequest, node_service: NodeServiceDep) -> Notify
 
     Called by nodes that think they might be our predecessor.
     """
-    node_service.handle_notify(
+    await node_service.handle_notify(
         predecessor_id=request.predecessor_id,
         predecessor_address=NodeAddress(
             host=request.predecessor_addr.host,
@@ -103,7 +103,7 @@ async def join(request: JoinRequest, node_service: NodeServiceDep) -> JoinRespon
 
     Finds the appropriate successor for the joining node.
     """
-    successor = node_service.handle_join(
+    successor = await node_service.handle_join(
         joining_id=request.id,
         joining_address=NodeAddress(
             host=request.address.host,

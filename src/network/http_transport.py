@@ -1,5 +1,6 @@
 """HTTP transport implementation."""
 
+import base64
 import logging
 
 import httpx
@@ -207,3 +208,32 @@ class HttpTransport(Transport):
             return response.status_code == 200
         except httpx.HTTPError:
             return False
+
+    async def request_files_in_range(
+        self, target: NodeAddress, start_key: int, end_key: int
+    ) -> list[tuple[str, bytes]]:
+        """Request files in a key range from a nodefor migration.
+
+        Args:
+            target (NodeAddress): Node to request files from
+            start_key (int): Start of range (exclusive)
+            end_key (int): End of range (inclusive)
+
+        Returns:
+            list[tuple[str, bytes]]: List of (filename, content) tuples
+        """
+        client = await self._get_client()
+        url = self._url(target, "/files/transfer")
+
+        try:
+            response = await client.post(
+                url,
+                json={"start_key": start_key, "end_key": end_key},
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            return [(f["filename"], base64.b64decode(f["content"])) for f in data.get("files", [])]
+        except httpx.HTTPError as e:
+            logger.error("Request files in range from %s failed: %s", target, e)
+            return []
