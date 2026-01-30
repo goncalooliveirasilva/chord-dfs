@@ -97,6 +97,12 @@ class ChordNode:
         response.raise_for_status()
         return response.json()["files"]
 
+    def list_local_files(self) -> list[str]:
+        """List files stored locally on this node (not routed)."""
+        response = httpx.get(f"{self.base_url}/files/list/local", timeout=10.0)
+        response.raise_for_status()
+        return response.json()["files"]
+
     def delete_file(self, filename: str) -> bool:
         """Delete a file from this node."""
         response = httpx.delete(f"{self.base_url}/files/{filename}", timeout=10.0)
