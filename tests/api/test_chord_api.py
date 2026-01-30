@@ -48,7 +48,7 @@ def mock_node_service():
     )
     service.get_predecessor = MagicMock(return_value=None)
     service.handle_notify = MagicMock(return_value=True)
-    service.handle_join = MagicMock(
+    service.handle_join = AsyncMock(
         return_value=NodeInfo(
             node_id=200,
             address=NodeAddress(host="localhost", port=5001),
