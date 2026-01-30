@@ -221,3 +221,57 @@ class TestForwardFile:
 
         # FastAPI returns 422 for validation errors, our code returns 400
         assert response.status_code in (400, 422)
+
+
+class TestTransferFiles:
+    """Tests for POST /files/transfer endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_transfer_files_success(self, client, mock_node_service):
+        """Transfer files in range returns base64 encoded files."""
+        import base64
+
+        mock_node_service.get_files_in_range.return_value = [
+            ("file1.txt", b"content1"),
+            ("file2.txt", b"content2"),
+        ]
+
+        response = await client.post(
+            "/files/transfer",
+            json={"start_key": 0, "end_key": 100},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["files"]) == 2
+
+        # Verify base64 encoding
+        assert data["files"][0]["filename"] == "file1.txt"
+        assert base64.b64decode(data["files"][0]["content"]) == b"content1"
+        assert data["files"][1]["filename"] == "file2.txt"
+        assert base64.b64decode(data["files"][1]["content"]) == b"content2"
+
+    @pytest.mark.asyncio
+    async def test_transfer_files_empty(self, client, mock_node_service):
+        """Transfer files returns empty list when no files in range."""
+        mock_node_service.get_files_in_range.return_value = []
+
+        response = await client.post(
+            "/files/transfer",
+            json={"start_key": 0, "end_key": 100},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["files"] == []
+
+    @pytest.mark.asyncio
+    async def test_transfer_files_calls_service_with_correct_range(self, client, mock_node_service):
+        """Transfer endpoint passes correct range to service."""
+        mock_node_service.get_files_in_range.return_value = []
+
+        await client.post(
+            "/files/transfer",
+            json={"start_key": 50, "end_key": 150},
+        )
+
+        mock_node_service.get_files_in_range.assert_called_once_with(50, 150)

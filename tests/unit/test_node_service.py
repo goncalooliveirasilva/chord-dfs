@@ -298,3 +298,79 @@ class TestNodeServiceHelpers:
 
         assert info.node_id == node_service.node_id
         assert info.address == node_service.address
+
+
+class TestNodeServiceMigration:
+    """Tests for key migration methods."""
+
+    @pytest.mark.asyncio
+    async def test_get_files_in_range_returns_matching_files(self, node_service, mock_storage):
+        """get_files_in_range returns files with keys in the specified range."""
+        # Setup: files with different keys
+        mock_storage.list_files.return_value = ["file1.txt", "file2.txt", "file3.txt"]
+        mock_storage.get.side_effect = [b"content1", b"content2", b"content3"]
+
+        # Get files in a range that includes some keys
+        # We need to pick a range that includes some file hashes
+        # Since hashes are deterministic, let's use the full range
+        result = await node_service.get_files_in_range(0, 1023)
+
+        assert len(result) == 3
+        assert all(isinstance(f, tuple) and len(f) == 2 for f in result)
+
+    @pytest.mark.asyncio
+    async def test_get_files_in_range_empty_when_no_matches(self, node_service, mock_storage):
+        """get_files_in_range returns empty list when no files match."""
+        mock_storage.list_files.return_value = []
+
+        result = await node_service.get_files_in_range(0, 100)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_migrate_keys_skips_when_no_predecessor(self, node_service, mock_transport):
+        """migrate_keys_from_successor does nothing when predecessor is None."""
+        node_service.node.predecessor = None
+
+        await node_service.migrate_keys_from_successor()
+
+        mock_transport.request_files_in_range.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_migrate_keys_skips_when_alone(self, node_service, mock_transport):
+        """migrate_keys_from_successor does nothing when node is alone."""
+        # Set predecessor but keep successor as self (alone)
+        node_service.node.predecessor = NodeInfo(
+            node_id=50, address=NodeAddress(host="pred", port=5001)
+        )
+        # Node is alone if successor == self (default state)
+
+        await node_service.migrate_keys_from_successor()
+
+        mock_transport.request_files_in_range.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_migrate_keys_requests_and_saves_files(
+        self, node_service, mock_transport, mock_storage
+    ):
+        """migrate_keys_from_successor requests files and saves them."""
+        # Setup: not alone, has predecessor
+        successor = NodeInfo(node_id=500, address=NodeAddress(host="successor", port=5002))
+        predecessor = NodeInfo(node_id=50, address=NodeAddress(host="predecessor", port=5001))
+        node_service.node.set_successor(successor)
+        node_service.node.predecessor = predecessor
+
+        # Mock transport returns files
+        mock_transport.request_files_in_range.return_value = [("migrated.txt", b"migrated content")]
+
+        await node_service.migrate_keys_from_successor()
+
+        # Verify request was made with correct range
+        mock_transport.request_files_in_range.assert_called_once_with(
+            target=successor.address,
+            start_key=predecessor.node_id,
+            end_key=node_service.node_id,
+        )
+
+        # Verify file was saved
+        mock_storage.save.assert_called_once_with("migrated.txt", b"migrated content")
