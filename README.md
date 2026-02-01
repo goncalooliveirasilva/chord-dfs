@@ -22,7 +22,7 @@ Chord-dfs is a distributed file storage system where files are automatically dis
 
 Chord-dfs implements the Chord protocol, which organizes nodes in a logical ring based on their hash values:
 
-<img src="docs/images/image-01.png" width="500px"/>
+<img src="docs/images/image-01.png" width="400px"/>
 
 When you upload a file:
 
