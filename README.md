@@ -118,7 +118,7 @@ src/
 
 | Component               | Description                                          |
 | ----------------------- | ---------------------------------------------------- |
-| **ChordNode**           | Pure state machine implementing Chord algorithms     |
+| **ChordNode**           | Pure logic implementing Chord algorithms     |
 | **FingerTable**         | Routing table with O(log N) lookup efficiency        |
 | **NodeService**         | Orchestrates DHT operations, runs stabilization loop |
 | **HttpTransport**       | Async inter-node communication via HTTP              |
