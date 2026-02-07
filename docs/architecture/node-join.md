@@ -6,11 +6,11 @@ When a new node starts with a bootstrap address configured, it joins the existin
 
 The join process goes through five phases:
 
-1. **Startup** — The node computes its ID by hashing its `host:port` address, and initializes its finger table with all entries pointing to itself.
-2. **Join Request** — The node sends a join request to the bootstrap node, which finds the correct successor for the new node's ID.
-3. **Ring Integration** — The node sets its successor, fills its finger table, and notifies the successor of its presence.
-4. **Key Migration** — The successor transfers any files whose keys now fall under the new node's responsibility.
-5. **Stabilization** — A background loop (every 2 seconds) corrects successor/predecessor pointers and refreshes finger table entries across all nodes.
+1. **Startup**: The node computes its ID by hashing its `host:port` address, and initializes its finger table with all entries pointing to itself.
+2. **Join Request**: The node sends a join request to the bootstrap node, which finds the correct successor for the new node's ID.
+3. **Ring Integration**: The node sets its successor, fills its finger table, and notifies the successor of its presence.
+4. **Key Migration**: The successor transfers any files whose keys now fall under the new node's responsibility.
+5. **Stabilization**: A background loop (every 2 seconds) corrects successor/predecessor pointers and refreshes finger table entries across all nodes.
 
 ## Message Flow
 
@@ -53,9 +53,9 @@ When the application starts, `NodeService` is created with the node's host, port
 
 The node sends a `POST /chord/join` request to the bootstrap node with its ID and address. The bootstrap node determines the correct successor for the joining node:
 
-- **If the bootstrap is alone** — it sets the joining node as its own successor and returns itself as the joining node's successor.
-- **If the joining node falls between the bootstrap and its current successor** — the bootstrap updates its successor to the joining node and returns the old successor.
-- **Otherwise** — the bootstrap uses its finger table to route the request to the correct part of the ring.
+- **If the bootstrap is alone** it sets the joining node as its own successor and returns itself as the joining node's successor.
+- **If the joining node falls between the bootstrap and its current successor** the bootstrap updates its successor to the joining node and returns the old successor.
+- **Otherwise** the bootstrap uses its finger table to route the request to the correct part of the ring.
 
 **Components:** `NodeService._join_ring`, `NodeService.handle_join`, `HttpTransport.join`
 
@@ -81,9 +81,9 @@ When a node's predecessor changes, it requests files from its successor that now
 
 Every 2 seconds, each node runs a stabilization cycle:
 
-1. **Check successor's predecessor** — If the successor's predecessor is a better successor (closer in the ring), update.
-2. **Notify successor** — Announce this node as a potential predecessor to the current successor.
-3. **Refresh finger table** — For each of the 10 finger entries, query the ring to find the correct successor for `node_id + 2^(i-1)`.
+1. **Check successor's predecessor**: If the successor's predecessor is a better successor (closer in the ring), update.
+2. **Notify successor**: Announce this node as a potential predecessor to the current successor.
+3. **Refresh finger table**: For each of the 10 finger entries, query the ring to find the correct successor for `node_id + 2^(i-1)`.
 
 Over several cycles, all nodes converge to correct successor, predecessor, and finger table pointers.
 
