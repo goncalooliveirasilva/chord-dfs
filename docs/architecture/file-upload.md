@@ -20,7 +20,7 @@ sequenceDiagram
 
     U->>A: POST /files (multipart form)
 
-    Note over A: Hash filename → key
+    Note over A: Hash filename -> key
 
     alt Node A is responsible
         Note over A: Save file locally
