@@ -124,6 +124,13 @@ src/
 | **HttpTransport**       | Async inter-node communication via HTTP              |
 | **LocalStorageBackend** | File persistence on local filesystem                 |
 
+### Process Documentation
+
+- [Node Join](docs/architecture/node-join.md): How a new node joins the ring
+- [Stabilization](docs/architecture/stabilization.md): Background protocol that maintains ring consistency
+- [File Upload](docs/architecture/file-upload.md): How files are routed and stored
+- [File Retrieval](docs/architecture/file-retrieval.md): How files are located and returned
+
 ## API Reference
 
 > Interactive OpenAPI documentation is available at `/docs` on any running node.
