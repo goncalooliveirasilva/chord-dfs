@@ -3,9 +3,9 @@
 A distributed file system built on the [Chord](https://pdos.csail.mit.edu/papers/ton:chord/paper-ton.pdf) Distributed Hash Table (DHT) protocol.
 
 [![CI](https://github.com/goncalooliveirasilva/chord-dfs/actions/workflows/ci.yml/badge.svg)](https://github.com/goncalooliveirasilva/chord-dfs/actions/workflows/ci.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=coverage)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=alert_status&token=9d8a1372c39d5f014e2d315dfbbb538109b9c758)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=coverage&token=9d8a1372c39d5f014e2d315dfbbb538109b9c758)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=goncalooliveirasilva_chord-dfs&metric=security_rating&token=9d8a1372c39d5f014e2d315dfbbb538109b9c758)](https://sonarcloud.io/summary/new_code?id=goncalooliveirasilva_chord-dfs)
 
 ## What is chord-dfs?
 
